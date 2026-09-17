@@ -12,10 +12,18 @@ import { ApiError } from "@/lib/api-client";
 import { useAuth } from "@/lib/auth-context";
 
 /**
- * DEVELOPMENT SCAFFOLDING — the "Acesso de demonstração" block below exposes the
- * seeded accounts and their shared password. Remove it (and the constant) before
- * this system is reachable from the public internet.
+ * Bloco "Acesso de demonstração": lista as contas semeadas e a senha que todas
+ * compartilham. É andaime de ambiente de teste — em produção seria um cardápio
+ * de e-mails válidos com a senha ao lado.
+ *
+ * Por isso ele é controlado pela MESMA variável que desenha a faixa de ambiente:
+ * um único valor decide as duas coisas, e não há como um deploy de produção
+ * acabar com o bloco visível porque alguém esqueceu de mexer num segundo lugar.
+ * Sem `NEXT_PUBLIC_APP_ENV`, ou com ela em produção, o bloco não é renderizado.
  */
+const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase() ?? "";
+const SHOW_DEMO_ACCOUNTS = APP_ENV !== "" && APP_ENV !== "production" && APP_ENV !== "prd";
+
 const DEMO_PASSWORD = "senha123";
 const DEMO_ACCOUNTS = [
   { email: "super@paulistana.org", role: "Super Admin" },
@@ -155,6 +163,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            {SHOW_DEMO_ACCOUNTS ? (
             <div className="rounded-md border border-dashed bg-muted/50 p-3">
               <p className="text-xs font-medium text-foreground">Acesso de demonstração</p>
               <div className="mt-2 grid gap-1">
@@ -175,6 +184,7 @@ export default function LoginPage() {
                 Senha de todos: <span className="font-mono">{DEMO_PASSWORD}</span>
               </p>
             </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>
