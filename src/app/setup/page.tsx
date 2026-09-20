@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +33,10 @@ export default function SetupPage() {
 
   const [guard, setGuard] = useState<GuardState>("checking");
   const [guardError, setGuardError] = useState<unknown>(null);
+  // Tracked in a ref, not in the dependency array. The check WRITES `guard`, so
+  // depending on it made the effect re-run mid-flight, and the cleanup cancelled
+  // the very request whose answer it was waiting for.
+  const checkStarted = useRef(false);
 
   const [step, setStep] = useState<SetupStep>(1);
   const [congregation, setCongregation] = useState<Congregation | null>(null);
@@ -48,9 +52,10 @@ export default function SetupPage() {
   }, [loading, user, router]);
 
   useEffect(() => {
-    // `guard !== "checking"` freezes the check after it has run once: the wizard
-    // itself creates a congregation, and re-running would redirect away mid-flow.
-    if (guard !== "checking" || loading || !user || user.role !== "SUPER_ADMIN") return;
+    // Runs at most once per attempt: the wizard itself creates a congregation,
+    // and re-running would redirect away mid-flow.
+    if (checkStarted.current || loading || !user || user.role !== "SUPER_ADMIN") return;
+    checkStarted.current = true;
 
     let cancelled = false;
     listCongregations()
@@ -104,8 +109,14 @@ export default function SetupPage() {
     return () => {
       cancelled = true;
     };
-    // Flipping `guard` back to "checking" is what re-runs this on retry.
-  }, [guard, loading, user, router]);
+    // `guard` is deliberately NOT a dependency. This effect sets it, so listing it
+    // made React tear the effect down halfway through: the cleanup flipped
+    // `cancelled`, the congregation switch came back 200 with the new session
+    // already stored, and the redirect that should have followed was skipped —
+    // leaving the screen spinning on a state that was in fact already fixed.
+    // (Refreshing "worked" only because the stored session was the repair.)
+    // Retrying resets the ref instead.
+  }, [loading, user, router]);
 
   function handleCongregationCreated(created: Congregation) {
     setCongregation(created);
@@ -182,6 +193,7 @@ export default function SetupPage() {
               title="Não foi possível verificar a instalação"
               onRetry={() => {
                 setGuardError(null);
+                checkStarted.current = false;
                 setGuard("checking");
               }}
             />
