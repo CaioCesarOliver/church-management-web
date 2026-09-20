@@ -54,15 +54,46 @@ export default function SetupPage() {
 
     let cancelled = false;
     listCongregations()
-      .then((items) => {
+      .then(async (items) => {
         if (cancelled) return;
-        if (items.length > 0) {
-          // The installation is past first run — setup has nothing left to do.
-          setGuard("leaving");
-          router.replace("/");
+        if (items.length === 0) {
+          setGuard("ready");
           return;
         }
-        setGuard("ready");
+
+        // The installation is past first run — setup has nothing left to do.
+        //
+        // But simply going back to "/" is what used to hang the browser. The app
+        // shell forwards a super admin with no active congregation to /setup, and
+        // a super admin whose token was minted before the first congregation
+        // existed arrives here with exactly that: no tenant, yet tenants to show.
+        // Each screen then satisfied the other's redirect condition and they
+        // bounced forever.
+        //
+        // The session is what is actually wrong, so this repairs it: adopt a
+        // tenant, then leave with a token that says so. Whoever is already in a
+        // congregation just leaves.
+        setGuard("leaving");
+        if (!user.congregation) {
+          try {
+            await switchCongregation(items[0].id);
+          } catch {
+            // Switching is the only way out of this state, so a failure has to
+            // surface as a retry instead of a redirect that would bounce back.
+            if (cancelled) return;
+            setGuardError(
+              new Error("Não foi possível entrar na congregação. Tente novamente."),
+            );
+            setGuard("failed");
+            return;
+          }
+          if (cancelled) return;
+          // Full reload, not a router push: the token changed, and every screen
+          // must refetch its tenant-scoped data against the new one.
+          window.location.replace("/");
+          return;
+        }
+        router.replace("/");
       })
       .catch((error) => {
         if (cancelled) return;
