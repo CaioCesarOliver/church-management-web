@@ -13,11 +13,10 @@ export default function UsersSettingsPage() {
     <div className="space-y-4">
       <PageHeader title="Usuários" description="Quem tem login nesta congregação" />
       <UsersTab
-      currentUserId={user.id}
-      isSuperAdmin={isSuperAdmin(user)}
-      readOnly={!can(user, P.usersManage)}
-    />
-  )
+        currentUserId={user.id}
+        isSuperAdmin={isSuperAdmin(user)}
+        readOnly={!can(user, P.usersManage)}
+      />
     </div>
   );
 }
