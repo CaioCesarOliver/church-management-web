@@ -5,7 +5,7 @@ import { listMeetingTypes } from "@/lib/api/domain";
 import type { MeetingType } from "@/types/api";
 
 /** Active types only: a retired type must not show up in a picker. */
-const store = createCachedList<MeetingType>(() => listMeetingTypes());
+const store = createCachedList<MeetingType>("meeting-types", () => listMeetingTypes());
 
 export const useMeetingTypes = store.useList;
 

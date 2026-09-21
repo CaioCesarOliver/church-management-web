@@ -5,7 +5,7 @@ import { listReferralSources } from "@/lib/api/domain";
 import type { ReferralSource } from "@/types/api";
 
 /** Active sources only: a retired source must not show up in a picker. */
-const store = createCachedList<ReferralSource>(() => listReferralSources());
+const store = createCachedList<ReferralSource>("referral-sources", () => listReferralSources());
 
 export const useReferralSources = store.useList;
 
