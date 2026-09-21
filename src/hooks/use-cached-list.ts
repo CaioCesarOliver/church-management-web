@@ -26,12 +26,24 @@ interface StoredEntry<T> {
  * Além deste tempo o que está guardado não é pintado — a tela mostra carregando
  * e espera o servidor.
  *
- * Uma hora é folgado de propósito: estas listas mudam uma vez por mês, e o
- * valor guardado só serve para a primeira pintura, porque a revalidação sai
- * sempre. O limite existe para o caso extremo de alguém voltar a uma aba
- * esquecida — aí é melhor esperar do que mostrar o mundo de ontem.
+ * Uma hora é folgado de propósito: estas listas mudam uma vez por mês. O limite
+ * existe para o caso extremo de alguém voltar a uma aba esquecida — aí é melhor
+ * esperar do que mostrar o mundo de ontem.
  */
 const MAX_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Enquanto o dado tiver menos que isto, nem revalida.
+ *
+ * Sem esta janela, "revalidar sempre" significava buscar as cinco listas a cada
+ * navegação entre telas — o oposto de economizar requisição. E revalidar tanto
+ * não compra quase nada: a invalidação que importa é explícita (Configurações
+ * chama `refresh` ao criar, editar ou remover), então a revalidação por tempo só
+ * cobre o caso de OUTRA pessoa ter mexido na lista, em outro navegador.
+ *
+ * Cinco minutos para listas que mudam uma vez por mês é folgado de sobra.
+ */
+const FRESH_FOR_MS = 5 * 60 * 1000;
 
 const KEY_PREFIX = "igreja.list";
 
@@ -107,9 +119,11 @@ export function clearCachedLists(): void {
  * 2. **sessionStorage** — sobrevive ao F5, que é o caso comum: a pessoa atualiza
  *    a tela e antes via três esqueletos girando de novo.
  *
- * A estratégia é **stale-while-revalidate**: pinta na hora com o que tem e vai
- * buscar do servidor em seguida, sempre. Ninguém fica olhando para dado velho —
- * só deixa de olhar para tela vazia enquanto o novo chega.
+ * A estratégia é **stale-while-revalidate com janela de frescor**: pinta na hora
+ * com o que tem e revalida — mas só se o dado já passou de `FRESH_FOR_MS`.
+ * Revalidar a cada montagem foi a primeira versão disto, e estava errada: para
+ * ganhar "não piscar" ela passou a disparar as cinco listas em toda navegação
+ * entre telas, aumentando o número de requisições em vez de reduzir.
  *
  * `sessionStorage` e não `localStorage` de propósito: o cache morre ao fechar a
  * aba. Estas listas não são segredo, mas uma máquina compartilhada na secretaria
@@ -129,6 +143,8 @@ export function createCachedList<T>(
   refresh: () => Promise<void>;
 } {
   let data: T[] | null = null;
+  /** Quando `data` foi obtido. Zero significa "veio do armazenamento, idade já conferida". */
+  let fetchedAt = 0;
   let error: unknown = null;
   let inFlight: Promise<void> | null = null;
   /** Se já tentamos ler o armazenamento nesta carga de página. */
@@ -145,17 +161,27 @@ export function createCachedList<T>(
     hydrated = true;
     if (data !== null) return;
     const stored = readStored<T>(name);
-    if (stored) data = stored;
+    if (stored) {
+      data = stored;
+      // Não marca como recém-buscado: o que veio do armazenamento pinta a tela
+      // na hora, mas ainda merece uma revalidação nesta primeira montagem.
+      fetchedAt = 0;
+    }
   }
 
   function load(force: boolean): Promise<void> {
-    // Sem `force`, uma busca em voo é reaproveitada — mas ter dado em mãos NÃO
-    // cancela a revalidação: é justamente o "while-revalidate" da estratégia.
-    if (inFlight && !force) return inFlight;
+    if (!force) {
+      // Uma busca em voo é reaproveitada por todos os consumidores da tela.
+      if (inFlight) return inFlight;
+      // Dado ainda fresco: não há o que revalidar. É esta linha que impede a
+      // navegação entre telas de rebuscar as listas toda vez.
+      if (data !== null && Date.now() - fetchedAt < FRESH_FOR_MS) return Promise.resolve();
+    }
 
     const pending = fetcher()
       .then((items) => {
         data = items;
+        fetchedAt = Date.now();
         error = null;
         writeStored(name, items);
       })
@@ -181,8 +207,9 @@ export function createCachedList<T>(
       listeners.add(listener);
 
       hydrate();
-      // Revalida sempre, mesmo já tendo pintado: quem está na tela vê o dado
-      // guardado imediatamente e o real logo em seguida.
+      // Pode não fazer nada: `load` decide se vale revalidar. O que veio do
+      // armazenamento sempre revalida uma vez; o que já está fresco em memória
+      // não gera requisição nenhuma.
       void load(false);
 
       return () => {
