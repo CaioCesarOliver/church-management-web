@@ -1,13 +1,11 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { CalendarDays, ChartColumn, LayoutDashboard, UserPlus, Users } from "lucide-react";
-
 import { CongregationSwitcher } from "@/components/congregation-switcher";
-import { NavMain, type NavItem } from "@/components/nav-main";
+import { NAV_ITEMS } from "@/components/nav-items";
+import { NavMain } from "@/components/nav-main";
 import { NavSettings } from "@/components/nav-settings";
 import { NavUser } from "@/components/nav-user";
-import { P } from "@/lib/permissions";
 import {
   Sidebar,
   SidebarContent,
@@ -17,14 +15,6 @@ import {
   SidebarMenu,
   SidebarRail,
 } from "@/components/ui/sidebar";
-
-const NAV_ITEMS: NavItem[] = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, permission: P.dashboardView },
-  { title: "Cultos", url: "/meetings", icon: CalendarDays, permission: P.meetingsView },
-  { title: "Membros", url: "/members", icon: Users, permission: P.membersView },
-  { title: "Visitantes", url: "/visitors", icon: UserPlus, permission: P.visitorsView },
-  { title: "Métricas", url: "/metrics", icon: ChartColumn, permission: P.metricsView },
-];
 
 export function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   return (

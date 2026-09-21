@@ -28,6 +28,7 @@ const SECTION_LABELS: Record<string, string> = {
   "/visitors": "Visitantes",
   "/metrics": "Métricas",
   "/settings": "Configurações",
+  "/account": "Minha conta",
 };
 
 interface Crumb {

@@ -200,6 +200,15 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+/**
+ * O usuário recém-criado. `initialPassword` vem preenchido quando foi o servidor
+ * que definiu a senha — devolvido uma única vez, para a tela comunicar
+ * exatamente o que foi gravado em vez de recalcular a regra por conta própria.
+ */
+export interface CreatedUser extends SystemUser {
+  initialPassword: string | null;
+}
+
 export interface SystemUser {
   id: string;
   name: string;

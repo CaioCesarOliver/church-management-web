@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { CredentialsDialog } from "@/components/credentials-dialog";
 import { ApiError } from "@/lib/api-client";
 import { createUser, updateUser } from "@/lib/api/settings";
 import { useRoles } from "@/hooks/use-roles";
@@ -49,7 +50,33 @@ export function UserFormDialog({
   onSaved,
 }: UserFormDialogProps) {
   const [saving, setSaving] = useState(false);
+  /**
+   * Credenciais a comunicar depois de criar.
+   *
+   * Vive aqui, e não dentro do formulário, porque substitui o formulário: o
+   * diálogo fecha e um segundo abre no lugar. Toast não serve — some em
+   * segundos, e senha inicial é informação para ler, copiar e repassar.
+   */
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const isEdit = Boolean(user);
+
+  if (created) {
+    return (
+      <CredentialsDialog
+        open
+        onOpenChange={(next) => {
+          if (!next) setCreated(null);
+        }}
+        title="Usuário criado"
+        description="Informe estes dados à pessoa. Ela troca a senha no primeiro acesso, em Minha conta."
+        fields={[
+          { label: "E-mail", value: created.email },
+          { label: "Senha inicial", value: created.password },
+        ]}
+        note="Esta senha não será exibida de novo. Se precisar, você pode definir uma nova editando o usuário."
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={saving ? undefined : onOpenChange}>
@@ -71,9 +98,10 @@ export function UserFormDialog({
           saving={saving}
           onSavingChange={setSaving}
           onCancel={() => onOpenChange(false)}
-          onSaved={() => {
+          onSaved={(credentials) => {
             onOpenChange(false);
             onSaved();
+            if (credentials) setCreated(credentials);
           }}
         />
       </DialogContent>
@@ -87,7 +115,8 @@ interface UserFormProps {
   saving: boolean;
   onSavingChange: (saving: boolean) => void;
   onCancel: () => void;
-  onSaved: () => void;
+  /** Recebe as credenciais quando foi o servidor que definiu a senha. */
+  onSaved: (credentials?: { email: string; password: string }) => void;
 }
 
 interface FormState {
@@ -164,7 +193,7 @@ function UserForm({
         });
         toast.success("Usuário atualizado.");
       } else {
-        await createUser({
+        const result = await createUser({
           name: form.name.trim(),
           email: form.email.trim(),
           // Sem senha: o servidor usa a padrão da instalação, e a pessoa troca

@@ -76,7 +76,7 @@ export function NavUser() {
                 nome e a própria senha não é configurar a congregação, e é neste
                 menu que qualquer pessoa vai procurar. */}
             <DropdownMenuItem asChild>
-              <Link href="/settings/account">
+              <Link href="/account">
                 <UserCog />
                 Minha conta
               </Link>

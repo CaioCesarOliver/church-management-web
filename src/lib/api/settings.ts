@@ -13,6 +13,7 @@ import type {
   CongregationDetail,
   LoginResponse,
   Paginated,
+  CreatedUser,
   SystemUser,
 } from "@/types/api";
 
@@ -42,8 +43,8 @@ export function listUsers(params?: UserListParams): Promise<Paginated<SystemUser
   return apiGetPaginated<SystemUser>("/api/users", params);
 }
 
-export function createUser(input: UserInput): Promise<SystemUser> {
-  return apiPost<SystemUser>("/api/users", input);
+export function createUser(input: UserInput): Promise<CreatedUser> {
+  return apiPost<CreatedUser>("/api/users", input);
 }
 
 export function updateUser(
