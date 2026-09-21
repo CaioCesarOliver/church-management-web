@@ -18,10 +18,10 @@ import { MeetingFormDialog } from "@/components/meetings/meeting-form-dialog";
 import { MeetingTable } from "@/components/meetings/meeting-table";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { P, can } from "@/lib/permissions";
 import { deleteMeeting, listMeetings } from "@/lib/api/meetings";
 import { useAuth } from "@/lib/auth-context";
 import { formatDateTime } from "@/lib/format";
-import { canWrite } from "@/lib/labels";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { Meeting, PaginationMeta } from "@/types/api";
 
@@ -36,7 +36,7 @@ const INITIAL_META: PaginationMeta = {
 
 export default function MeetingsPage() {
   const { user } = useAuth();
-  const editable = canWrite(user?.role);
+  const editable = can(user, P.meetingsManage);
 
   const [filters, setFilters] = useState<MeetingFiltersValue>(EMPTY_FILTERS);
   const [page, setPage] = useState(1);

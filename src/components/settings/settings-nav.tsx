@@ -1,53 +1,61 @@
-"use client";
-
 import {
-  BadgeCheck,
+  Boxes,
   Building2,
+  BadgeCheck,
   CalendarCog,
   Compass,
+  KeyRound,
   Network,
-  Boxes,
-  UserCog,
+  Settings,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { P } from "@/lib/permissions";
+import type { Permission } from "@/types/api";
 
-interface SettingsNavItem {
+export interface SettingsNavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Only a SUPER_ADMIN sees cross-tenant settings. */
-  superAdminOnly?: boolean;
 }
 
-interface SettingsNavGroup {
+export interface SettingsNavGroup {
   label: string;
+  icon: LucideIcon;
+  /** Quem enxerga o grupo. Um grupo sem permissão nenhuma some inteiro. */
+  permission?: Permission;
+  /** Gestão cross-tenant: capacidade de plataforma, não permissão marcável. */
+  superAdminOnly?: boolean;
   items: SettingsNavItem[];
 }
 
 /**
- * Grouped on purpose. Six flat entries tell you nothing about what KIND of
- * setting each one is; grouping answers "am I configuring the congregation, an
- * access, or the installation?" before you read a single label.
+ * A navegação de configurações — hoje DENTRO da sidebar, como submenus.
+ *
+ * Isto já foi seis abas numa tela só, e depois uma coluna de navegação dentro
+ * de `/settings`. As duas formas tinham o mesmo defeito: a área cresce, e tanto
+ * a fileira de abas quanto a coluna interna viram um depósito onde nada tem
+ * hierarquia. Com o submenu na sidebar, cada seção é um destino de primeira
+ * classe — aparece junto de Membros e Cultos, não escondida atrás de um clique.
+ *
+ * A divisão em DOIS grupos não é estética: é a mesma fronteira de permissão que
+ * a API usa. Parametrizar a congregação (`settings:*`) e decidir quem entra
+ * (`users:*`) são autorizações diferentes, e agora o menu mostra isso — quem só
+ * administra acessos não vê a parte de parametrização, e vice-versa.
+ *
+ * "Minha conta" saiu daqui de propósito e foi para o menu do usuário, no
+ * rodapé: trocar a própria senha não é configurar a congregação, e é onde
+ * qualquer pessoa procuraria.
  */
 export const SETTINGS_NAV: SettingsNavGroup[] = [
   {
-    label: "Congregação",
+    label: "Configurações",
+    icon: Settings,
+    permission: P.settingsView,
     items: [
-      { href: "/settings/congregation", label: "Dados gerais", icon: Building2 },
+      { href: "/settings/congregation", label: "Congregação", icon: Building2 },
       { href: "/settings/meeting-types", label: "Tipos de culto", icon: CalendarCog },
       { href: "/settings/positions", label: "Cargos", icon: BadgeCheck },
       { href: "/settings/departments", label: "Departamentos", icon: Boxes },
@@ -56,87 +64,20 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
   },
   {
     label: "Acessos",
+    icon: ShieldCheck,
+    permission: P.usersView,
     items: [
       { href: "/settings/users", label: "Usuários", icon: Users },
-      { href: "/settings/account", label: "Minha conta", icon: UserCog },
+      { href: "/settings/roles", label: "Níveis de acesso", icon: KeyRound },
     ],
   },
   {
     label: "Sistema",
-    items: [
-      { href: "/settings/congregations", label: "Congregações", icon: Network, superAdminOnly: true },
-    ],
+    icon: Network,
+    superAdminOnly: true,
+    items: [{ href: "/settings/congregations", label: "Congregações", icon: Network }],
   },
 ];
 
-export function SettingsNav({ isSuperAdmin }: { isSuperAdmin: boolean }) {
-  const pathname = usePathname();
-  const router = useRouter();
-
-  const groups = SETTINGS_NAV.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => !item.superAdminOnly || isSuperAdmin),
-  })).filter((group) => group.items.length > 0);
-
-  const allItems = groups.flatMap((group) => group.items);
-  const current = allItems.find((item) => pathname.startsWith(item.href))?.href ?? allItems[0]?.href;
-
-  return (
-    <>
-      {/* Phone: a select. A horizontal strip of six tabs either overflows or
-          truncates its labels, and neither tells you where you are. */}
-      <div className="lg:hidden">
-        <Select value={current} onValueChange={(value) => router.push(value)}>
-          <SelectTrigger className="w-full" aria-label="Seção de configurações">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {groups.map((group) => (
-              <SelectGroup key={group.label}>
-                <SelectLabel>{group.label}</SelectLabel>
-                {group.items.map((item) => (
-                  <SelectItem key={item.href} value={item.href}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <nav className="hidden lg:block" aria-label="Configurações">
-        <div className="space-y-6">
-          {groups.map((group) => (
-            <div key={group.label} className="space-y-1">
-              <p className="text-muted-foreground px-2 text-xs font-medium tracking-wide uppercase">
-                {group.label}
-              </p>
-              {group.items.map((item) => {
-                const isActive = pathname.startsWith(item.href);
-                const Icon = item.icon;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
-                      isActive
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-                    )}
-                  >
-                    <Icon className="size-4 shrink-0" aria-hidden="true" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </nav>
-    </>
-  );
-}
+/** Todos os destinos, achatados — usado pelo breadcrumb para achar o rótulo. */
+export const SETTINGS_ITEMS: SettingsNavItem[] = SETTINGS_NAV.flatMap((group) => group.items);

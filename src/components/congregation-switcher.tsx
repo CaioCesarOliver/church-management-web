@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/sidebar";
 import { listCongregations, switchCongregation } from "@/lib/api/settings";
 import { useAuth } from "@/lib/auth-context";
-import { USER_ROLE_LABELS } from "@/lib/labels";
 import type { Congregation } from "@/types/api";
 
 export function CongregationSwitcher() {
@@ -50,7 +49,9 @@ export function CongregationSwitcher() {
   if (!user || !user.congregation) return null;
 
   const active = user.congregation;
-  const roleLabel = USER_ROLE_LABELS[user.role];
+  // Super admin não tem nível de congregação: o nível é sempre DE uma
+  // congregação, e ele não pertence a nenhuma.
+  const roleLabel = user.superAdmin ? "Super admin" : (user.role?.name ?? "Sem nível");
   const canSwitch = congregations.length > 1;
 
   async function handleSwitch(congregationId: string) {

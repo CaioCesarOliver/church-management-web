@@ -23,20 +23,13 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { deleteUser, listUsers } from "@/lib/api/settings";
 import { useAuth } from "@/lib/auth-context";
 import { formatDate, initials } from "@/lib/format";
-import { USER_ROLE_LABELS, USER_ROLE_OPTIONS } from "@/lib/labels";
-import type { PaginationMeta, SystemUser, UserRole } from "@/types/api";
+import { useRoles } from "@/hooks/use-roles";
+import type { PaginationMeta, SystemUser } from "@/types/api";
 
 const ALL = "all";
 const PAGE_SIZE = 20;
 
 const EMPTY_META: PaginationMeta = { page: 1, pageSize: PAGE_SIZE, total: 0, totalPages: 0 };
-
-const ROLE_BADGE_VARIANT: Record<UserRole, "default" | "secondary" | "outline"> = {
-  SUPER_ADMIN: "default",
-  ADMIN: "default",
-  SECRETARY: "secondary",
-  PASTOR: "outline",
-};
 
 interface UsersTabProps {
   /** The signed-in user — they may not delete their own account. */
@@ -55,7 +48,8 @@ export function UsersTab({ currentUserId, isSuperAdmin, readOnly = false }: User
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 350);
-  const [role, setRole] = useState<string>(ALL);
+  const [roleId, setRoleId] = useState<string>(ALL);
+  const { items: roles } = useRoles();
   const [activeFilter, setActiveFilter] = useState<string>(ALL);
   const [page, setPage] = useState(1);
 
@@ -74,7 +68,7 @@ export function UsersTab({ currentUserId, isSuperAdmin, readOnly = false }: User
     try {
       const result = await listUsers({
         search: debouncedSearch.trim() || undefined,
-        role: role === ALL ? undefined : (role as UserRole),
+        roleId: roleId === ALL ? undefined : roleId,
         active: activeFilter === ALL ? undefined : activeFilter === "true",
         page,
         pageSize: PAGE_SIZE,
@@ -86,12 +80,12 @@ export function UsersTab({ currentUserId, isSuperAdmin, readOnly = false }: User
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, role, activeFilter, page]);
+  }, [debouncedSearch, roleId, activeFilter, page]);
 
   // A narrowed filter can leave the current page past the end of the result set.
   // Adjusting during render (instead of in an effect) keeps `load` from firing
   // once with the stale page and again with page 1.
-  const filtersKey = `${debouncedSearch}|${role}|${activeFilter}`;
+  const filtersKey = `${debouncedSearch}|${roleId}|${activeFilter}`;
   const [appliedFiltersKey, setAppliedFiltersKey] = useState(filtersKey);
   if (appliedFiltersKey !== filtersKey) {
     setAppliedFiltersKey(filtersKey);
@@ -102,7 +96,7 @@ export function UsersTab({ currentUserId, isSuperAdmin, readOnly = false }: User
     void load();
   }, [load]);
 
-  const hasFilters = debouncedSearch.trim() !== "" || role !== ALL || activeFilter !== ALL;
+  const hasFilters = debouncedSearch.trim() !== "" || roleId !== ALL || activeFilter !== ALL;
 
   function openCreate() {
     setEditing(null);
@@ -161,11 +155,18 @@ export function UsersTab({ currentUserId, isSuperAdmin, readOnly = false }: User
       cell: (user) => user.email,
     },
     {
+      // "Nível de acesso", e não "Cargo": cargo agora é a posição ministerial no
+      // cadastro de membro. Duas coisas diferentes não podem ter o mesmo nome.
       key: "role",
-      header: "Cargo",
-      cell: (user) => (
-        <Badge variant={ROLE_BADGE_VARIANT[user.role]}>{USER_ROLE_LABELS[user.role]}</Badge>
-      ),
+      header: "Nível de acesso",
+      cell: (user) =>
+        user.superAdmin ? (
+          <Badge>Super admin</Badge>
+        ) : user.role ? (
+          <Badge variant="secondary">{user.role.name}</Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       key: "active",
@@ -236,21 +237,17 @@ export function UsersTab({ currentUserId, isSuperAdmin, readOnly = false }: User
             placeholder="Buscar por nome ou e-mail"
           />
 
-          <Select value={role} onValueChange={setRole}>
-            <SelectTrigger className="w-full sm:w-44" aria-label="Filtrar por cargo">
-              <SelectValue placeholder="Cargo" />
+          <Select value={roleId} onValueChange={setRoleId}>
+            <SelectTrigger className="w-full sm:w-52" aria-label="Filtrar por nível de acesso">
+              <SelectValue placeholder="Nível de acesso" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ALL}>Todos os cargos</SelectItem>
-              {USER_ROLE_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+              <SelectItem value={ALL}>Todos os níveis</SelectItem>
+              {roles.map((role) => (
+                <SelectItem key={role.id} value={role.id}>
+                  {role.name}
                 </SelectItem>
               ))}
-              {/* Only reachable when a SUPER_ADMIN exists in the congregation. */}
-              {isSuperAdmin ? (
-                <SelectItem value="SUPER_ADMIN">{USER_ROLE_LABELS.SUPER_ADMIN}</SelectItem>
-              ) : null}
             </SelectContent>
           </Select>
 
@@ -303,7 +300,7 @@ export function UsersTab({ currentUserId, isSuperAdmin, readOnly = false }: User
                 variant="outline"
                 onClick={() => {
                   setSearch("");
-                  setRole(ALL);
+                  setRoleId(ALL);
                   setActiveFilter(ALL);
                 }}
               >

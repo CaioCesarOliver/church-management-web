@@ -53,9 +53,14 @@ function buildCrumbs(pathname: string): Crumb[] {
   // the settings nav uses, so renaming a section renames it in both places.
   if (sectionHref === "/settings" && segments[1]) {
     const target = `/settings/${segments[1]}`;
-    const item = SETTINGS_NAV.flatMap((group) => group.items).find((it) => it.href === target);
-    if (item) {
-      return [{ label: sectionLabel, href: sectionHref }, { label: item.label }];
+    // O grupo dá o primeiro nível: "Acessos / Usuários" diz mais que
+    // "Configurações / Usuários", e é o caminho que a sidebar mostra.
+    const group = SETTINGS_NAV.find((candidate) =>
+      candidate.items.some((item) => item.href === target),
+    );
+    const item = group?.items.find((candidate) => candidate.href === target);
+    if (group && item) {
+      return [{ label: group.label }, { label: item.label }];
     }
   }
 
@@ -80,7 +85,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     // there is no tenant for any of these screens to read. Send them to the
     // first-run wizard, which lives outside this layout precisely because the
     // sidebar has nothing to show yet.
-    if (!loading && user && user.role === "SUPER_ADMIN" && user.congregation === null) {
+    if (!loading && user && user.superAdmin && user.congregation === null) {
       router.replace("/setup");
     }
   }, [loading, user, router]);

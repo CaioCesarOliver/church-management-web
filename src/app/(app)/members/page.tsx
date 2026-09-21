@@ -23,9 +23,10 @@ import { MembersFilterBar } from "@/components/members/members-filter-bar";
 import { MembersTable } from "@/components/members/members-table";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { P, can } from "@/lib/permissions";
 import { deleteMember, listMembers, updateMember } from "@/lib/api/members";
 import { useAuth } from "@/lib/auth-context";
-import { canWrite, MEMBER_STATUS_LABELS } from "@/lib/labels";
+import { MEMBER_STATUS_LABELS } from "@/lib/labels";
 import type { Member, Paginated } from "@/types/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
@@ -33,7 +34,7 @@ const PAGE_SIZE = 20;
 
 export default function MembersPage() {
   const { user } = useAuth();
-  const writer = canWrite(user?.role);
+  const writer = can(user, P.membersManage);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
