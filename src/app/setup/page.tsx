@@ -13,13 +13,16 @@ import { SetupSteps, type SetupStep } from "@/components/setup/setup-steps";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { listRoles } from "@/lib/api/roles";
 import { listCongregations, switchCongregation } from "@/lib/api/settings";
 import { useAuth } from "@/lib/auth-context";
-import { USER_ROLE_LABELS } from "@/lib/labels";
-import type { Congregation, UserRole } from "@/types/api";
+import type { Congregation, Role } from "@/types/api";
 
-/** The accounts offered in step 2, in the order they are most likely needed. */
-const ACCESS_ROLES: UserRole[] = ["ADMIN", "SECRETARY", "PASTOR"];
+/**
+ * Os acessos oferecidos no passo 2 vêm dos NÍVEIS da congregação recém-criada,
+ * e não de uma lista fixa: quem administra pode ter renomeado ou acrescentado
+ * níveis, e o wizard mostraria nomes que não existem mais.
+ */
 
 type GuardState = "checking" | "ready" | "leaving" | "failed";
 
@@ -40,6 +43,7 @@ export default function SetupPage() {
 
   const [step, setStep] = useState<SetupStep>(1);
   const [congregation, setCongregation] = useState<Congregation | null>(null);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [accesses, setAccesses] = useState<CreatedAccess[]>([]);
   const [entering, setEntering] = useState(false);
 
@@ -54,7 +58,7 @@ export default function SetupPage() {
   useEffect(() => {
     // Runs at most once per attempt: the wizard itself creates a congregation,
     // and re-running would redirect away mid-flow.
-    if (checkStarted.current || loading || !user || user.role !== "SUPER_ADMIN") return;
+    if (checkStarted.current || loading || !user || !user.superAdmin) return;
     checkStarted.current = true;
 
     let cancelled = false;
@@ -118,8 +122,18 @@ export default function SetupPage() {
     // Retrying resets the ref instead.
   }, [loading, user, router]);
 
-  function handleCongregationCreated(created: Congregation) {
+  async function handleCongregationCreated(created: Congregation) {
     setCongregation(created);
+    // Os níveis nascem junto com a congregação, na mesma transação. Pedimos
+    // explicitamente pelo id dela porque o super admin ainda não entrou nela —
+    // o token não tem tenant e a rota não teria como inferir.
+    try {
+      setRoles(await listRoles({ congregationId: created.id }));
+    } catch {
+      // Falhar aqui não pode travar o wizard: os acessos são opcionais e podem
+      // ser criados depois em Configurações.
+      setRoles([]);
+    }
     setStep(2);
   }
 
@@ -158,7 +172,7 @@ export default function SetupPage() {
     );
   }
 
-  if (user.role !== "SUPER_ADMIN") {
+  if (!user.superAdmin) {
     return (
       <SetupShell>
         <Card>
@@ -170,7 +184,7 @@ export default function SetupPage() {
               <p className="font-medium">Configuração inicial restrita</p>
               <p className="mx-auto max-w-sm text-sm text-muted-foreground">
                 Somente um super administrador pode fazer a configuração inicial do sistema. Você
-                entrou como {USER_ROLE_LABELS[user.role].toLowerCase()} — peça a quem administra o
+                entrou como {user.role?.name.toLowerCase() ?? "usuário comum"} — peça a quem administra o
                 sistema para concluir esta etapa.
               </p>
             </div>
@@ -218,7 +232,9 @@ export default function SetupPage() {
 
   return (
     <SetupShell steps={<SetupSteps current={step} />}>
-      {step === 1 ? <CreateCongregationStep onCreated={handleCongregationCreated} /> : null}
+      {step === 1 ? (
+        <CreateCongregationStep onCreated={(created) => void handleCongregationCreated(created)} />
+      ) : null}
 
       {step === 2 && congregation ? (
         <div className="space-y-4">
@@ -234,12 +250,12 @@ export default function SetupPage() {
           </Card>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            {ACCESS_ROLES.map((role) => (
+            {roles.map((role) => (
               <AccessCard
-                key={role}
+                key={role.id}
                 role={role}
                 congregationId={congregation.id}
-                created={accesses.find((access) => access.role === role) ?? null}
+                created={accesses.find((access) => access.roleId === role.id) ?? null}
                 onCreated={handleAccessCreated}
               />
             ))}
@@ -291,7 +307,7 @@ export default function SetupPage() {
                         <p className="text-sm text-muted-foreground break-all">{access.email}</p>
                       </div>
                       <span className="shrink-0 text-xs text-muted-foreground">
-                        {USER_ROLE_LABELS[access.role]}
+                        {access.roleName}
                       </span>
                     </li>
                   ))}

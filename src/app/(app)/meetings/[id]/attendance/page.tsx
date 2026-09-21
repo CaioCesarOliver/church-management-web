@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/page-header";
 import { SearchInput } from "@/components/search-input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { P, can } from "@/lib/permissions";
 import { ApiError } from "@/lib/api-client";
 import {
   getAttendanceSheet,
@@ -27,7 +28,6 @@ import {
 } from "@/lib/api/attendance";
 import { useAuth } from "@/lib/auth-context";
 import { formatDateLong, formatNumber } from "@/lib/format";
-import { canWrite } from "@/lib/labels";
 import type { AttendanceSheet } from "@/types/api";
 
 type ListTab = "members" | "visitors";
@@ -36,7 +36,7 @@ type BulkAction = "mark" | "clear";
 export default function AttendancePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: meetingId } = use(params);
   const { user } = useAuth();
-  const editable = canWrite(user?.role);
+  const editable = can(user, P.attendanceManage);
 
   const [sheet, setSheet] = useState<AttendanceSheet | null>(null);
   const [loading, setLoading] = useState(true);

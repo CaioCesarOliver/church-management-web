@@ -26,10 +26,10 @@ import { VisitorsTable } from "@/components/visitors/visitors-table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useReferralSources } from "@/hooks/use-referral-sources";
+import { P, can } from "@/lib/permissions";
 import { deleteVisitor, listVisitors, type VisitorListParams } from "@/lib/api/visitors";
 import { useAuth } from "@/lib/auth-context";
 import { formatNumber } from "@/lib/format";
-import { canWrite } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import type { Paginated, Visitor } from "@/types/api";
 
@@ -82,7 +82,7 @@ function deleteWarning(visitor: Visitor): string {
 
 export default function VisitorsPage() {
   const { user } = useAuth();
-  const writable = canWrite(user?.role);
+  const writable = can(user, P.visitorsManage);
   const { items: referralSources, loading: loadingSources } = useReferralSources();
 
   const [search, setSearch] = useState("");

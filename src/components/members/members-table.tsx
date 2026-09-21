@@ -99,6 +99,18 @@ export function MembersTable({
       ),
     },
     {
+      key: "position",
+      header: "Cargo",
+      // Escondido antes de xl: é a coluna menos usada no dia a dia, e num
+      // notebook estreito ela empurraria Assiduidade para fora da tela.
+      hideBelow: "xl",
+      cell: (member) => (
+        <span className={member.position ? undefined : "text-muted-foreground"}>
+          {member.position?.name ?? "—"}
+        </span>
+      ),
+    },
+    {
       key: "status",
       header: "Status",
       hideBelow: "sm",

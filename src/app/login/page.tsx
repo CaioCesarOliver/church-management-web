@@ -24,12 +24,12 @@ import { useAuth } from "@/lib/auth-context";
 const APP_ENV = process.env.NEXT_PUBLIC_APP_ENV?.trim().toLowerCase() ?? "";
 const SHOW_DEMO_ACCOUNTS = APP_ENV !== "" && APP_ENV !== "production" && APP_ENV !== "prd";
 
-const DEMO_PASSWORD = "senha123";
+const DEMO_PASSWORD = "Paulistana@2026!";
 const DEMO_ACCOUNTS = [
-  { email: "super@paulistana.org", role: "Super Admin" },
+  { email: "super@paulistana.org", role: "Super admin" },
   { email: "admin@paulistana.org", role: "Administrador" },
   { email: "secretaria@paulistana.org", role: "Secretária" },
-  { email: "pastor@paulistana.org", role: "Pastor (somente leitura)" },
+  { email: "simone.rosa@paulistana.org", role: "Recepcionista" },
 ];
 
 export default function LoginPage() {

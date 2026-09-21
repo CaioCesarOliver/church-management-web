@@ -24,6 +24,12 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/components/date-picker";
+import {
+  MemberDepartmentsField,
+  type DepartmentSelection,
+} from "@/components/members/member-departments-field";
+import { useDepartments } from "@/hooks/use-departments";
+import { usePositions } from "@/hooks/use-positions";
 import { errorMessage } from "@/components/error-state";
 import { ApiError } from "@/lib/api-client";
 import { createMember, updateMember, type MemberInput } from "@/lib/api/members";
@@ -39,6 +45,9 @@ interface MemberFormValues {
   address: string;
   notes: string;
   status: MemberStatus;
+  /** "" significa sem cargo — o Select não aceita value vazio, ver NO_POSITION. */
+  positionId: string;
+  departments: DepartmentSelection[];
 }
 
 const EMPTY_VALUES: MemberFormValues = {
@@ -50,7 +59,16 @@ const EMPTY_VALUES: MemberFormValues = {
   address: "",
   notes: "",
   status: "ACTIVE",
+  positionId: "",
+  departments: [],
 };
+
+/**
+ * O Select do Radix trata `value=""` como "não controlado" e o placeholder
+ * some. Então "sem cargo" precisa de um valor próprio, traduzido de volta para
+ * null no envio.
+ */
+const NO_POSITION = "__none__";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -64,6 +82,11 @@ function toFormValues(member: Member): MemberFormValues {
     address: member.address ?? "",
     notes: member.notes ?? "",
     status: member.status,
+    positionId: member.position?.id ?? "",
+    departments: member.departments.map((department) => ({
+      departmentId: department.id,
+      leader: department.leader,
+    })),
   };
 }
 
@@ -88,6 +111,8 @@ export function MemberFormDialog({
   onSaved,
 }: MemberFormDialogProps) {
   const isEditing = member !== null;
+  const { items: positions, loading: loadingPositions } = usePositions();
+  const { items: departments, loading: loadingDepartments } = useDepartments();
   const [values, setValues] = useState<MemberFormValues>(EMPTY_VALUES);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -137,6 +162,11 @@ export function MemberFormDialog({
       notes: nullable(values.notes),
       // Status is only part of the form while editing; new members default to ACTIVE.
       ...(isEditing ? { status: values.status } : {}),
+      // `null` limpa o cargo; o formulário sempre manda o campo porque ele
+      // sempre esteve na tela, então omitir aqui seria perder uma remoção.
+      positionId: values.positionId === "" ? null : values.positionId,
+      // Conjunto final, não acréscimo: `[]` remove de todos.
+      departments: values.departments,
     };
 
     setSaving(true);
@@ -287,6 +317,46 @@ export function MemberFormDialog({
               placeholder="Rua das Flores, 100 — Centro"
             />
             {errors.address ? <p className="text-xs text-destructive">{errors.address}</p> : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="member-position">Cargo</Label>
+            <Select
+              value={values.positionId === "" ? NO_POSITION : values.positionId}
+              onValueChange={(value) =>
+                setField("positionId", value === NO_POSITION ? "" : value)
+              }
+              disabled={saving || loadingPositions}
+            >
+              <SelectTrigger id="member-position" className="w-full">
+                <SelectValue placeholder={loadingPositions ? "Carregando…" : "Sem cargo"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_POSITION}>Sem cargo</SelectItem>
+                {positions.map((position) => (
+                  <SelectItem key={position.id} value={position.id}>
+                    {position.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              Posição ministerial da pessoa. Um cargo por membro, e é opcional.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Departamentos</Label>
+            <MemberDepartmentsField
+              departments={departments}
+              loading={loadingDepartments}
+              value={values.departments}
+              onChange={(next) => setField("departments", next)}
+              disabled={saving}
+            />
+            <p className="text-muted-foreground text-xs">
+              Onde a pessoa serve. Marque quantos quiser e use “Líder” em quem responde pela frente.
+            </p>
           </div>
 
           <div className="space-y-2">

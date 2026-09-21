@@ -2,28 +2,26 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
 
-import {
-  SidebarGroup,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar";
-
-export interface NavItem {
-  title: string;
-  url: string;
-  icon: LucideIcon;
-}
+import { useAuth } from "@/lib/auth-context";
+import { can } from "@/lib/permissions";
+import type { NavItem } from "@/components/nav-items";
+import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 
 export function NavMain({ items }: { items: NavItem[] }) {
   const pathname = usePathname();
+  const { user } = useAuth();
 
+  // Filtrado aqui, e não em quem chama: o menu é o único lugar que decide o que
+  // aparece, então a regra fica onde se olha quando algo some sem explicação.
+  const visible = items.filter((item) => can(user, item.permission));
+
+  // Devolve só os ITENS, sem <SidebarGroup> nem <SidebarMenu> em volta: quem
+  // monta o grupo é a sidebar, e um grupo por componente criaria um respiro de
+  // 16px (p-2 de cada) entre blocos que são a mesma lista.
   return (
-    <SidebarGroup>
-      <SidebarMenu>
-        {items.map((item) => {
+    <>
+      {visible.map((item) => {
           // "/" would prefix-match every route, so the Dashboard entry is exact.
           const isActive = item.url === "/" ? pathname === "/" : pathname.startsWith(item.url);
 
@@ -35,10 +33,9 @@ export function NavMain({ items }: { items: NavItem[] }) {
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
-            </SidebarMenuItem>
-          );
-        })}
-      </SidebarMenu>
-    </SidebarGroup>
+          </SidebarMenuItem>
+        );
+      })}
+    </>
   );
 }

@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
 import { changeMyPassword, updateMyAccount } from "@/lib/api/account";
 import { useAuth } from "@/lib/auth-context";
-import { USER_ROLE_LABELS } from "@/lib/labels";
 import type { AuthUser } from "@/types/api";
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -104,9 +103,11 @@ function ProfileCard({ user }: AccountTabProps) {
           </div>
 
           <div className="space-y-2">
-            <span className="text-sm font-medium">Cargo</span>
+            <span className="text-sm font-medium">Nível de acesso</span>
             <p>
-              <Badge variant="secondary">{USER_ROLE_LABELS[user.role]}</Badge>
+              <Badge variant="secondary">
+                {user.superAdmin ? "Super admin" : (user.role?.name ?? "Sem nível")}
+              </Badge>
             </p>
           </div>
 

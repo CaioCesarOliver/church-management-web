@@ -10,20 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api-client";
 import { createUser } from "@/lib/api/settings";
-import { USER_ROLE_DESCRIPTIONS, USER_ROLE_LABELS } from "@/lib/labels";
-import type { UserRole } from "@/types/api";
+import type { Role } from "@/types/api";
 
 const MIN_PASSWORD_LENGTH = 8;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface CreatedAccess {
-  role: UserRole;
+  roleId: string;
+  roleName: string;
   name: string;
   email: string;
 }
 
 interface AccessCardProps {
-  role: UserRole;
+  /** O nível vem da congregação recém-criada, não de uma lista fixa no código. */
+  role: Role;
   /** The congregation created in step 1 — these users are created inside it. */
   congregationId: string;
   created: CreatedAccess | null;
@@ -42,7 +43,7 @@ export function AccessCard({ role, congregationId, created, onCreated }: AccessC
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  const idPrefix = `access-${role.toLowerCase()}`;
+  const idPrefix = `access-${role.id}`;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,13 +67,13 @@ export function AccessCard({ role, congregationId, created, onCreated }: AccessC
         name: name.trim(),
         email: email.trim(),
         password,
-        role,
+        roleId: role.id,
         // The super admin has no active congregation yet, so the API cannot
         // infer the tenant from the token — it has to be named explicitly.
         congregationId,
       });
-      toast.success(`Acesso de ${USER_ROLE_LABELS[role].toLowerCase()} criado.`);
-      onCreated({ role, name: name.trim(), email: email.trim() });
+      toast.success(`Acesso de ${role.name.toLowerCase()} criado.`);
+      onCreated({ roleId: role.id, roleName: role.name, name: name.trim(), email: email.trim() });
     } catch (error) {
       if (error instanceof ApiError) {
         const fieldErrors = error.fieldErrors;
@@ -97,7 +98,7 @@ export function AccessCard({ role, congregationId, created, onCreated }: AccessC
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <CircleCheckBig className="size-4 text-primary" aria-hidden="true" />
-            {USER_ROLE_LABELS[role]}
+            {role.name}
           </CardTitle>
           <CardDescription>Acesso criado.</CardDescription>
         </CardHeader>
@@ -112,8 +113,10 @@ export function AccessCard({ role, congregationId, created, onCreated }: AccessC
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{USER_ROLE_LABELS[role]}</CardTitle>
-        <CardDescription>{USER_ROLE_DESCRIPTIONS[role]}</CardDescription>
+        <CardTitle className="text-base">{role.name}</CardTitle>
+        <CardDescription>
+          {role.permissions.length} permissõe(s). Ajustável depois em Configurações.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>

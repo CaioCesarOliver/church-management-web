@@ -4,7 +4,44 @@
  * type error rather than a runtime surprise.
  */
 
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "SECRETARY" | "PASTOR";
+/**
+ * Uma permissão do catálogo, no formato `area:acao`.
+ *
+ * Deliberadamente `string`, e não uma união fechada: o catálogo é definido no
+ * servidor, e duplicá-lo aqui criaria duas listas para manter em dia. A tela de
+ * permissionamento desenha o que a API devolve em `/api/roles/permissions`.
+ */
+export type Permission = string;
+
+/** Nível de acesso, como vem dentro de um usuário. */
+export interface RoleRef {
+  id: string;
+  name: string;
+}
+
+/** Uma área do catálogo — uma tela, do ponto de vista de quem usa. */
+export interface PermissionArea {
+  key: string;
+  label: string;
+  description: string;
+  /** Falso para áreas em que só se lê, como Dashboard e Métricas. */
+  manageable: boolean;
+}
+
+/** Nível de acesso da congregação, editável em Configurações. */
+export interface Role {
+  id: string;
+  name: string;
+  /** Níveis criados com a congregação: editáveis, mas não excluíveis. */
+  system: boolean;
+  sortOrder: number;
+  active: boolean;
+  permissions: Permission[];
+  /** Usuários neste nível — um nível em uso não pode ser excluído. */
+  userCount: number;
+  createdAt: string;
+}
+
 export type MemberStatus = "ACTIVE" | "INACTIVE";
 export type AbsenceReason = "NO_ATTENDANCE_IN_PERIOD" | "CONSECUTIVE_MISSES";
 
@@ -32,6 +69,28 @@ export interface ReferralSource {
   visitorCount?: number;
 }
 
+/** Cargo eclesiástico: o que a pessoa É na igreja. Um por membro. */
+export interface Position {
+  id: string;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+  /** Membros que o exercem — um cargo em uso não pode ser excluído. */
+  memberCount?: number;
+}
+
+/** Departamento: onde a pessoa SERVE. Vários por membro. */
+export interface Department {
+  id: string;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+  /** Membros que servem nele — um departamento com gente não pode ser excluído. */
+  memberCount?: number;
+  /** Quantos desses lideram. Sempre menor ou igual a `memberCount`. */
+  leaderCount?: number;
+}
+
 /** The subset embedded in a meeting or a metrics point. */
 export interface MeetingTypeRef {
   id: string;
@@ -43,6 +102,22 @@ export interface MeetingTypeRef {
 export interface ReferralSourceRef {
   id: string;
   name: string;
+}
+
+/** O cargo como vem dentro de um membro. */
+export interface PositionRef {
+  id: string;
+  name: string;
+}
+
+/**
+ * Um departamento do membro. `leader` vive aqui, e não no departamento, porque
+ * o nome sozinho não distingue quem lidera de quem participa.
+ */
+export interface MemberDepartment {
+  id: string;
+  name: string;
+  leader: boolean;
 }
 
 export interface PaginationMeta {
@@ -101,7 +176,18 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  /**
+   * Capacidade de plataforma, não nível de acesso. Só isto dá gestão
+   * cross-tenant — que de propósito não é uma permissão marcável.
+   */
+  superAdmin: boolean;
+  /** Null para super admin, que não pertence a congregação nenhuma. */
+  role: RoleRef | null;
+  /**
+   * O que este usuário pode fazer, já expandido pelo servidor ("gerenciar"
+   * sempre acompanhado de "ver"). É daqui que o menu e os botões são montados.
+   */
+  permissions: Permission[];
   /**
    * Null on a brand-new installation: a SUPER_ADMIN exists before any
    * congregation does, and has to create the first one from `/setup`.
@@ -114,11 +200,21 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+/**
+ * O usuário recém-criado. `initialPassword` vem preenchido quando foi o servidor
+ * que definiu a senha — devolvido uma única vez, para a tela comunicar
+ * exatamente o que foi gravado em vez de recalcular a regra por conta própria.
+ */
+export interface CreatedUser extends SystemUser {
+  initialPassword: string | null;
+}
+
 export interface SystemUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: RoleRef | null;
+  superAdmin: boolean;
   active: boolean;
   createdAt: string;
 }
@@ -149,6 +245,9 @@ export interface Member {
   status: MemberStatus;
   createdAt: string;
   convertedFromVisitor: boolean;
+  position: PositionRef | null;
+  /** Ordenados pelo `sortOrder` do departamento, como em Configurações. */
+  departments: MemberDepartment[];
   stats: MemberStats;
 }
 

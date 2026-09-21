@@ -1,18 +1,23 @@
 "use client";
 
+import { PageHeader } from "@/components/page-header";
 import { UsersTab } from "@/components/settings/users-tab";
+import { P, can, isSuperAdmin } from "@/lib/permissions";
 import { useAuth } from "@/lib/auth-context";
-import { canManageSettings } from "@/lib/labels";
 
 export default function UsersSettingsPage() {
   const { user } = useAuth();
   if (!user) return null;
 
   return (
-    <UsersTab
+    <div className="space-y-4">
+      <PageHeader title="Usuários" description="Quem tem login nesta congregação" />
+      <UsersTab
       currentUserId={user.id}
-      isSuperAdmin={user.role === "SUPER_ADMIN"}
-      readOnly={!canManageSettings(user.role)}
+      isSuperAdmin={isSuperAdmin(user)}
+      readOnly={!can(user, P.usersManage)}
     />
+  )
+    </div>
   );
 }

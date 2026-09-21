@@ -13,13 +13,13 @@ import type {
   CongregationDetail,
   LoginResponse,
   Paginated,
+  CreatedUser,
   SystemUser,
-  UserRole,
 } from "@/types/api";
 
 export interface UserListParams extends QueryParams {
   search?: string;
-  role?: UserRole | "";
+  roleId?: string;
   active?: boolean;
   page?: number;
   pageSize?: number;
@@ -28,8 +28,9 @@ export interface UserListParams extends QueryParams {
 export interface UserInput {
   name: string;
   email: string;
-  password: string;
-  role: UserRole;
+  /** Opcional: sem ela, o usuário nasce com a senha padrão da instalação. */
+  password?: string;
+  roleId: string;
   /**
    * SUPER_ADMIN only: creates the user inside another congregation instead of
    * the active one. Required while the caller has no active congregation — the
@@ -42,8 +43,8 @@ export function listUsers(params?: UserListParams): Promise<Paginated<SystemUser
   return apiGetPaginated<SystemUser>("/api/users", params);
 }
 
-export function createUser(input: UserInput): Promise<SystemUser> {
-  return apiPost<SystemUser>("/api/users", input);
+export function createUser(input: UserInput): Promise<CreatedUser> {
+  return apiPost<CreatedUser>("/api/users", input);
 }
 
 export function updateUser(

@@ -23,10 +23,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { CredentialsDialog } from "@/components/credentials-dialog";
 import { ApiError } from "@/lib/api-client";
 import { createUser, updateUser } from "@/lib/api/settings";
-import { USER_ROLE_DESCRIPTIONS, USER_ROLE_LABELS, USER_ROLE_OPTIONS } from "@/lib/labels";
-import type { SystemUser, UserRole } from "@/types/api";
+import { useRoles } from "@/hooks/use-roles";
+import type { SystemUser } from "@/types/api";
 
 const MIN_PASSWORD_LENGTH = 8;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -49,7 +50,33 @@ export function UserFormDialog({
   onSaved,
 }: UserFormDialogProps) {
   const [saving, setSaving] = useState(false);
+  /**
+   * Credenciais a comunicar depois de criar.
+   *
+   * Vive aqui, e não dentro do formulário, porque substitui o formulário: o
+   * diálogo fecha e um segundo abre no lugar. Toast não serve — some em
+   * segundos, e senha inicial é informação para ler, copiar e repassar.
+   */
+  const [created, setCreated] = useState<{ email: string; password: string } | null>(null);
   const isEdit = Boolean(user);
+
+  if (created) {
+    return (
+      <CredentialsDialog
+        open
+        onOpenChange={(next) => {
+          if (!next) setCreated(null);
+        }}
+        title="Usuário criado"
+        description="Informe estes dados à pessoa. Ela troca a senha no primeiro acesso, em Minha conta."
+        fields={[
+          { label: "E-mail", value: created.email },
+          { label: "Senha inicial", value: created.password },
+        ]}
+        note="Esta senha não será exibida de novo. Se precisar, você pode definir uma nova editando o usuário."
+      />
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={saving ? undefined : onOpenChange}>
@@ -71,9 +98,10 @@ export function UserFormDialog({
           saving={saving}
           onSavingChange={setSaving}
           onCancel={() => onOpenChange(false)}
-          onSaved={() => {
+          onSaved={(credentials) => {
             onOpenChange(false);
             onSaved();
+            if (credentials) setCreated(credentials);
           }}
         />
       </DialogContent>
@@ -87,14 +115,16 @@ interface UserFormProps {
   saving: boolean;
   onSavingChange: (saving: boolean) => void;
   onCancel: () => void;
-  onSaved: () => void;
+  /** Recebe as credenciais quando foi o servidor que definiu a senha. */
+  onSaved: (credentials?: { email: string; password: string }) => void;
 }
 
 interface FormState {
   name: string;
   email: string;
   password: string;
-  role: UserRole;
+  /** Id do nível, não mais um valor de enum: os níveis são dado da congregação. */
+  roleId: string;
   active: boolean;
 }
 
@@ -107,28 +137,24 @@ function UserForm({
   onSaved,
 }: UserFormProps) {
   const isEdit = user !== null;
+  const { items: roles, loading: loadingRoles } = useRoles();
   const [form, setForm] = useState<FormState>({
     name: user?.name ?? "",
     email: user?.email ?? "",
     password: "",
-    role: user?.role ?? "SECRETARY",
+    roleId: user?.role?.id ?? "",
     active: user?.active ?? true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   /**
-   * USER_ROLE_OPTIONS excludes SUPER_ADMIN on purpose: it grants cross-congregation
-   * access and the API rejects a non-SUPER_ADMIN handing it out. Offer it only to a
-   * SUPER_ADMIN — or when the row being edited already has it, so the select can
-   * render its current value.
+   * Não há opção de super admin aqui, e não é esquecimento.
+   *
+   * Super admin deixou de ser um nível e virou capacidade de plataforma, fora do
+   * catálogo de permissões: se fosse escolhível neste formulário, quem administra
+   * usuários poderia se conceder acesso a todas as congregações da rede.
    */
-  const roleOptions =
-    canGrantSuperAdmin || user?.role === "SUPER_ADMIN"
-      ? [
-          { value: "SUPER_ADMIN" as UserRole, label: USER_ROLE_LABELS.SUPER_ADMIN },
-          ...USER_ROLE_OPTIONS,
-        ]
-      : USER_ROLE_OPTIONS;
+  const selectedRole = roles.find((role) => role.id === form.roleId) ?? null;
 
   function validate(): Record<string, string> {
     const next: Record<string, string> = {};
@@ -139,8 +165,9 @@ function UserForm({
     if (!EMAIL_PATTERN.test(form.email.trim())) {
       next.email = "Informe um e-mail válido.";
     }
-    // On edit the password field is a replacement, not a requirement.
-    if ((!isEdit || form.password.length > 0) && form.password.length < MIN_PASSWORD_LENGTH) {
+    // A senha só é validada quando foi digitada: na criação ela nem aparece
+    // (o usuário nasce com a padrão) e na edição é uma substituição opcional.
+    if (form.password.length > 0 && form.password.length < MIN_PASSWORD_LENGTH) {
       next.password = `A senha precisa de ao menos ${MIN_PASSWORD_LENGTH} caracteres.`;
     }
 
@@ -160,17 +187,19 @@ function UserForm({
         await updateUser(user.id, {
           name: form.name.trim(),
           email: form.email.trim(),
-          role: form.role,
+          roleId: form.roleId,
           active: form.active,
           ...(form.password ? { password: form.password } : {}),
         });
         toast.success("Usuário atualizado.");
       } else {
-        await createUser({
+        const result = await createUser({
           name: form.name.trim(),
           email: form.email.trim(),
-          password: form.password,
-          role: form.role,
+          // Sem senha: o servidor usa a padrão da instalação, e a pessoa troca
+          // depois em Minha conta. Assim quem cadastra não precisa inventar uma
+          // senha nem ficar com a senha de outra pessoa anotada em algum lugar.
+          roleId: form.roleId,
         });
         toast.success("Usuário criado.");
       }
@@ -232,47 +261,60 @@ function UserForm({
         ) : null}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="user-password">Senha</Label>
-        <Input
-          id="user-password"
-          type="password"
-          value={form.password}
-          onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
-          placeholder="••••••••"
-          autoComplete="new-password"
-          aria-invalid={Boolean(errors.password)}
-          aria-describedby="user-password-hint"
-        />
-        <p id="user-password-hint" className="text-xs text-muted-foreground">
-          {isEdit
-            ? "Deixe em branco para manter a atual. Mínimo de 8 caracteres."
-            : "Mínimo de 8 caracteres."}
+      {isEdit ? (
+        <div className="space-y-2">
+          <Label htmlFor="user-password">Nova senha</Label>
+          <Input
+            id="user-password"
+            type="password"
+            value={form.password}
+            onChange={(event) => setForm((prev) => ({ ...prev, password: event.target.value }))}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby="user-password-hint"
+          />
+          <p id="user-password-hint" className="text-muted-foreground text-xs">
+            Deixe em branco para manter a atual. Mínimo de 8 caracteres.
+          </p>
+          {errors.password ? <p className="text-destructive text-sm">{errors.password}</p> : null}
+        </div>
+      ) : (
+        <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-2.5 text-sm">
+          A pessoa recebe uma <strong className="text-foreground">senha padrão</strong> e a troca no
+          primeiro acesso, em Minha conta. Assim você não precisa inventar uma senha nem ficar com a
+          senha de outra pessoa anotada.
         </p>
-        {errors.password ? <p className="text-sm text-destructive">{errors.password}</p> : null}
-      </div>
+      )}
 
       <div className="space-y-2">
-        {/* "Cargo" on screen, `role` in the code: the user thinks in terms of the
-            position someone holds in the congregation, not an access level. */}
-        <Label htmlFor="user-role">Cargo</Label>
+        {/* "Nível de acesso", e não "Cargo": desde que existe cargo eclesiástico
+            no cadastro de membro, chamar as duas coisas de cargo confundiria
+            quem preenche. Cargo é o que a pessoa É na igreja; nível é o que ela
+            pode fazer no sistema. */}
+        <Label htmlFor="user-role">Nível de acesso</Label>
         <Select
-          value={form.role}
-          onValueChange={(value) => setForm((prev) => ({ ...prev, role: value as UserRole }))}
+          value={form.roleId}
+          onValueChange={(value) => setForm((prev) => ({ ...prev, roleId: value }))}
+          disabled={saving || loadingRoles}
         >
           <SelectTrigger id="user-role" className="w-full">
-            <SelectValue placeholder="Selecione o cargo" />
+            <SelectValue placeholder={loadingRoles ? "Carregando…" : "Selecione o nível"} />
           </SelectTrigger>
           <SelectContent>
-            {roleOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
+            {roles.map((role) => (
+              <SelectItem key={role.id} value={role.id}>
+                {role.name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">{USER_ROLE_DESCRIPTIONS[form.role]}</p>
-        {errors.role ? <p className="text-sm text-destructive">{errors.role}</p> : null}
+        <p className="text-muted-foreground text-xs">
+          {selectedRole
+            ? `${selectedRole.permissions.length} permissõe(s). Ajuste em Configurações → Níveis de acesso.`
+            : "Define o que esta pessoa consegue ver e editar no sistema."}
+        </p>
+        {errors.roleId ? <p className="text-destructive text-sm">{errors.roleId}</p> : null}
       </div>
 
       {isEdit ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { TrendingUp, TriangleAlert, UserPlus, Users } from "lucide-react";
 
@@ -12,6 +13,9 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api-client";
 import { getAbsenceAlerts, getDashboard } from "@/lib/api/metrics";
+import { firstAllowedPath } from "@/components/nav-items";
+import { useAuth } from "@/lib/auth-context";
+import { P, can } from "@/lib/permissions";
 import { formatNumber, formatPercent } from "@/lib/format";
 import type { AbsenceAlertsResponse, DashboardMetrics } from "@/types/api";
 
@@ -21,6 +25,17 @@ function errorMessage(error: unknown): string {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user, loading: loadingUser } = useAuth();
+  /**
+   * Alertas de ausência são dado pastoral, e vêm do endpoint de métricas.
+   *
+   * Quem tem o Dashboard mas não tem Métricas — a recepcionista, por exemplo —
+   * vê os números gerais e NÃO vê quem anda faltando. Sem esta separação a tela
+   * inteira falhava por causa de um cartão, e a pessoa recebia "sem permissão"
+   * numa tela que ela pode abrir.
+   */
+  const showAlerts = can(user, P.metricsView);
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [alerts, setAlerts] = useState<AbsenceAlertsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -30,7 +45,10 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [dashboard, absence] = await Promise.all([getDashboard(), getAbsenceAlerts()]);
+      const [dashboard, absence] = await Promise.all([
+        getDashboard(),
+        showAlerts ? getAbsenceAlerts() : Promise.resolve(null),
+      ]);
       setMetrics(dashboard);
       setAlerts(absence);
     } catch (err) {
@@ -38,11 +56,20 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showAlerts]);
 
   useEffect(() => {
+    // Sem permissão para o Dashboard, esta rota não é destino: manda para a
+    // primeira tela que a pessoa consegue abrir. Deixá-la aqui mostraria um erro
+    // de permissão logo após o login, na tela que o login escolheu.
+    if (loadingUser || !user) return;
+    if (!can(user, P.dashboardView)) {
+      const fallback = firstAllowedPath(user);
+      if (fallback && fallback !== "/") router.replace(fallback);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [loadingUser, user, load, router]);
 
   return (
     <div className="space-y-4">
@@ -94,10 +121,12 @@ export default function DashboardPage() {
 
           <div className="grid gap-4 lg:grid-cols-2">
             <LastMeetingCard meeting={metrics.lastMeeting} />
-            <AbsenceAlertList
-              alerts={alerts?.items ?? []}
-              total={alerts?.meta.total ?? metrics.absenceAlertCount}
-            />
+            {showAlerts ? (
+              <AbsenceAlertList
+                alerts={alerts?.items ?? []}
+                total={alerts?.meta.total ?? metrics.absenceAlertCount}
+              />
+            ) : null}
           </div>
         </div>
       ) : null}

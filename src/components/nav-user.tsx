@@ -1,6 +1,8 @@
 "use client";
 
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import Link from "next/link";
+
+import { ChevronsUpDown, LogOut, UserCog } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -19,7 +21,6 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/lib/auth-context";
 import { initials } from "@/lib/format";
-import { USER_ROLE_LABELS } from "@/lib/labels";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
@@ -27,7 +28,7 @@ export function NavUser() {
 
   if (!user) return null;
 
-  const roleLabel = USER_ROLE_LABELS[user.role];
+  const roleLabel = user.superAdmin ? "Super admin" : (user.role?.name ?? "Sem nível");
 
   return (
     <SidebarMenu>
@@ -70,6 +71,16 @@ export function NavUser() {
                 </div>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {/* "Minha conta" mora aqui, e não em Configurações: trocar o próprio
+                nome e a própria senha não é configurar a congregação, e é neste
+                menu que qualquer pessoa vai procurar. */}
+            <DropdownMenuItem asChild>
+              <Link href="/account">
+                <UserCog />
+                Minha conta
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>
               <LogOut />

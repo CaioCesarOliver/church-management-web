@@ -9,9 +9,11 @@ import type { SortOrder } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { errorMessage } from "@/components/error-state";
 import {
+  ALL_DEPARTMENTS,
+  ALL_POSITIONS,
   ALL_STATUS,
-  isMemberSort,
   MEMBER_SORT_PARAMS,
+  isMemberSort,
   type MemberSort,
   type StatusFilter,
 } from "@/components/members/member-filters";
@@ -21,9 +23,10 @@ import { MembersFilterBar } from "@/components/members/members-filter-bar";
 import { MembersTable } from "@/components/members/members-table";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import { P, can } from "@/lib/permissions";
 import { deleteMember, listMembers, updateMember } from "@/lib/api/members";
 import { useAuth } from "@/lib/auth-context";
-import { canWrite, MEMBER_STATUS_LABELS } from "@/lib/labels";
+import { MEMBER_STATUS_LABELS } from "@/lib/labels";
 import type { Member, Paginated } from "@/types/api";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
@@ -31,11 +34,13 @@ const PAGE_SIZE = 20;
 
 export default function MembersPage() {
   const { user } = useAuth();
-  const writer = canWrite(user?.role);
+  const writer = can(user, P.membersManage);
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
   const [status, setStatus] = useState<StatusFilter>(ALL_STATUS);
+  const [positionId, setPositionId] = useState<string>(ALL_POSITIONS);
+  const [departmentId, setDepartmentId] = useState<string>(ALL_DEPARTMENTS);
   const [onlyAbsenceAlert, setOnlyAbsenceAlert] = useState(false);
   const [sort, setSort] = useState<MemberSort>("name");
   const [sortOrder, setSortOrder] = useState<SortOrder>(MEMBER_SORT_PARAMS.name.sortOrder);
@@ -60,6 +65,8 @@ export default function MembersPage() {
           search: debouncedSearch.trim() || undefined,
           status: status === ALL_STATUS ? undefined : status,
           inAbsenceAlert: onlyAbsenceAlert ? true : undefined,
+          positionId: positionId === ALL_POSITIONS ? undefined : positionId,
+          departmentId: departmentId === ALL_DEPARTMENTS ? undefined : departmentId,
           sortBy: MEMBER_SORT_PARAMS[sort].sortBy,
           sortOrder,
           page,
@@ -72,7 +79,7 @@ export default function MembersPage() {
         setLoading(false);
       }
     },
-    [debouncedSearch, status, onlyAbsenceAlert, sort, sortOrder, page],
+    [debouncedSearch, status, positionId, departmentId, onlyAbsenceAlert, sort, sortOrder, page],
   );
 
   useEffect(() => {
@@ -80,11 +87,18 @@ export default function MembersPage() {
   }, [load]);
 
   const items = data?.items ?? [];
-  const hasFilters = search.trim() !== "" || status !== ALL_STATUS || onlyAbsenceAlert;
+  const hasFilters =
+    search.trim() !== "" ||
+    status !== ALL_STATUS ||
+    positionId !== ALL_POSITIONS ||
+    departmentId !== ALL_DEPARTMENTS ||
+    onlyAbsenceAlert;
 
   function clearFilters() {
     setSearch("");
     setStatus(ALL_STATUS);
+    setPositionId(ALL_POSITIONS);
+    setDepartmentId(ALL_DEPARTMENTS);
     setOnlyAbsenceAlert(false);
     setPage(1);
   }
@@ -192,6 +206,16 @@ export default function MembersPage() {
         status={status}
         onStatusChange={(value) => {
           setStatus(value);
+          setPage(1);
+        }}
+        positionId={positionId}
+        onPositionChange={(value) => {
+          setPositionId(value);
+          setPage(1);
+        }}
+        departmentId={departmentId}
+        onDepartmentChange={(value) => {
+          setDepartmentId(value);
           setPage(1);
         }}
         onlyAbsenceAlert={onlyAbsenceAlert}
