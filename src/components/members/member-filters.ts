@@ -3,6 +3,10 @@ import type { MemberStatus } from "@/types/api";
 /** shadcn's Select rejects an empty string value, so "Todos" needs a sentinel. */
 export const ALL_STATUS = "ALL";
 
+/** Mesmo motivo do ALL_STATUS: "todos os cargos" / "todos os departamentos". */
+export const ALL_POSITIONS = "ALL_POSITIONS";
+export const ALL_DEPARTMENTS = "ALL_DEPARTMENTS";
+
 export type StatusFilter = MemberStatus | typeof ALL_STATUS;
 
 export type MemberSort = "name" | "recent" | "attendance";

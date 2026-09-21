@@ -49,7 +49,7 @@ export interface DataTableColumn<T> {
    * Reach for it on secondary columns so the primary ones stay readable on a
    * phone — the roll call is used standing up, on a phone, mid-service.
    */
-  hideBelow?: "sm" | "md" | "lg";
+  hideBelow?: "sm" | "md" | "lg" | "xl";
 }
 
 interface DataTableProps<T> {
@@ -86,6 +86,7 @@ const HIDE_BELOW_CLASS = {
   sm: "hidden sm:table-cell",
   md: "hidden md:table-cell",
   lg: "hidden lg:table-cell",
+  xl: "hidden xl:table-cell",
 } as const;
 
 const ALIGN_CLASS = {

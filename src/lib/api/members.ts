@@ -5,6 +5,10 @@ export interface MemberListParams extends QueryParams {
   search?: string;
   status?: MemberStatus | "";
   inAbsenceAlert?: boolean;
+  positionId?: string;
+  departmentId?: string;
+  /** Só vale junto com `departmentId`: restringe a quem lidera aquele departamento. */
+  departmentLeaderOnly?: boolean;
   sortBy?: "name" | "createdAt" | "attendanceRate";
   sortOrder?: "asc" | "desc";
   window?: number;
@@ -21,6 +25,14 @@ export interface MemberInput {
   address?: string | null;
   notes?: string | null;
   status?: MemberStatus;
+  /** `null` ou `""` limpa o cargo; omitir mantém o que está lá. */
+  positionId?: string | null;
+  /**
+   * Conjunto FINAL de departamentos, não um acréscimo: `[]` remove de todos e
+   * omitir não mexe em nada. Mandar só o que entrou tornaria impossível remover
+   * alguém sem um endpoint separado só para isso.
+   */
+  departments?: Array<{ departmentId: string; leader: boolean }>;
 }
 
 export function listMembers(params?: MemberListParams): Promise<Paginated<Member>> {

@@ -2,6 +2,8 @@
 
 import { TriangleAlert } from "lucide-react";
 
+import { useDepartments } from "@/hooks/use-departments";
+import { usePositions } from "@/hooks/use-positions";
 import { SearchInput } from "@/components/search-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -15,6 +17,8 @@ import { Switch } from "@/components/ui/switch";
 import { MEMBER_STATUS_OPTIONS } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import {
+  ALL_DEPARTMENTS,
+  ALL_POSITIONS,
   ALL_STATUS,
   MEMBER_SORT_OPTIONS,
   type MemberSort,
@@ -26,6 +30,10 @@ interface MembersFilterBarProps {
   onSearchChange: (value: string) => void;
   status: StatusFilter;
   onStatusChange: (value: StatusFilter) => void;
+  positionId: string;
+  onPositionChange: (value: string) => void;
+  departmentId: string;
+  onDepartmentChange: (value: string) => void;
   onlyAbsenceAlert: boolean;
   onOnlyAbsenceAlertChange: (value: boolean) => void;
   sort: MemberSort;
@@ -37,11 +45,18 @@ export function MembersFilterBar({
   onSearchChange,
   status,
   onStatusChange,
+  positionId,
+  onPositionChange,
+  departmentId,
+  onDepartmentChange,
   onlyAbsenceAlert,
   onOnlyAbsenceAlertChange,
   sort,
   onSortChange,
 }: MembersFilterBarProps) {
+  const { items: positions } = usePositions();
+  const { items: departments } = useDepartments();
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -73,6 +88,52 @@ export function MembersFilterBar({
                 {MEMBER_STATUS_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label htmlFor="member-position-filter" className="sr-only">
+              Cargo
+            </Label>
+            <Select value={positionId} onValueChange={onPositionChange}>
+              <SelectTrigger
+                id="member-position-filter"
+                aria-label="Filtrar por cargo"
+                className="w-full sm:w-[160px]"
+              >
+                <SelectValue placeholder="Cargo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_POSITIONS}>Todos os cargos</SelectItem>
+                {positions.map((position) => (
+                  <SelectItem key={position.id} value={position.id}>
+                    {position.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Label htmlFor="member-department-filter" className="sr-only">
+              Departamento
+            </Label>
+            <Select value={departmentId} onValueChange={onDepartmentChange}>
+              <SelectTrigger
+                id="member-department-filter"
+                aria-label="Filtrar por departamento"
+                className="w-full sm:w-[180px]"
+              >
+                <SelectValue placeholder="Departamento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_DEPARTMENTS}>Todos os departamentos</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getMember } from "@/lib/api/members";
+import { MemberDepartmentBadges } from "@/components/members/member-departments-field";
 import { formatDate, formatDaysAgo, formatPercent, formatPhone, initials } from "@/lib/format";
 import { MEMBER_STATUS_LABELS } from "@/lib/labels";
 import type { Member, MemberDetail } from "@/types/api";
@@ -202,6 +203,10 @@ export function MemberDetailSheet({
               <section className="space-y-1">
                 <h3 className="text-sm font-medium">Dados cadastrais</h3>
                 <dl className="divide-y">
+                  <DetailRow label="Cargo">{member.position?.name ?? "—"}</DetailRow>
+                  <DetailRow label="Departamentos">
+                    <MemberDepartmentBadges departments={member.departments} />
+                  </DetailRow>
                   <DetailRow label="Telefone">{formatPhone(member.phone)}</DetailRow>
                   <DetailRow label="E-mail">{member.email ?? "—"}</DetailRow>
                   <DetailRow label="Nascimento">{formatDate(member.birthDate)}</DetailRow>

@@ -32,6 +32,28 @@ export interface ReferralSource {
   visitorCount?: number;
 }
 
+/** Cargo eclesiástico: o que a pessoa É na igreja. Um por membro. */
+export interface Position {
+  id: string;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+  /** Membros que o exercem — um cargo em uso não pode ser excluído. */
+  memberCount?: number;
+}
+
+/** Departamento: onde a pessoa SERVE. Vários por membro. */
+export interface Department {
+  id: string;
+  name: string;
+  sortOrder: number;
+  active: boolean;
+  /** Membros que servem nele — um departamento com gente não pode ser excluído. */
+  memberCount?: number;
+  /** Quantos desses lideram. Sempre menor ou igual a `memberCount`. */
+  leaderCount?: number;
+}
+
 /** The subset embedded in a meeting or a metrics point. */
 export interface MeetingTypeRef {
   id: string;
@@ -43,6 +65,22 @@ export interface MeetingTypeRef {
 export interface ReferralSourceRef {
   id: string;
   name: string;
+}
+
+/** O cargo como vem dentro de um membro. */
+export interface PositionRef {
+  id: string;
+  name: string;
+}
+
+/**
+ * Um departamento do membro. `leader` vive aqui, e não no departamento, porque
+ * o nome sozinho não distingue quem lidera de quem participa.
+ */
+export interface MemberDepartment {
+  id: string;
+  name: string;
+  leader: boolean;
 }
 
 export interface PaginationMeta {
@@ -149,6 +187,9 @@ export interface Member {
   status: MemberStatus;
   createdAt: string;
   convertedFromVisitor: boolean;
+  position: PositionRef | null;
+  /** Ordenados pelo `sortOrder` do departamento, como em Configurações. */
+  departments: MemberDepartment[];
   stats: MemberStats;
 }
 

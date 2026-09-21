@@ -1,6 +1,15 @@
 "use client";
 
-import { Building2, CalendarCog, Compass, Network, UserCog, Users } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  CalendarCog,
+  Compass,
+  Network,
+  Boxes,
+  UserCog,
+  Users,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -40,6 +49,8 @@ export const SETTINGS_NAV: SettingsNavGroup[] = [
     items: [
       { href: "/settings/congregation", label: "Dados gerais", icon: Building2 },
       { href: "/settings/meeting-types", label: "Tipos de culto", icon: CalendarCog },
+      { href: "/settings/positions", label: "Cargos", icon: BadgeCheck },
+      { href: "/settings/departments", label: "Departamentos", icon: Boxes },
       { href: "/settings/referral-sources", label: "Origens de visitante", icon: Compass },
     ],
   },
