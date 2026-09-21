@@ -202,6 +202,15 @@ function UserForm({
           roleId: form.roleId,
         });
         toast.success("Usuário criado.");
+        // Entrega as credenciais para o diálogo trocar o formulário pelo modal
+        // que as comunica. Só vem preenchido quando foi o SERVIDOR que definiu a
+        // senha — se quem cadastrou escolheu uma, ela já sabe qual é.
+        onSaved(
+          result.initialPassword
+            ? { email: result.email, password: result.initialPassword }
+            : undefined,
+        );
+        return;
       }
       onSaved();
     } catch (error) {
