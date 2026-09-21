@@ -19,6 +19,7 @@ import {
   storeSession,
   UNAUTHORIZED_EVENT,
 } from "@/lib/api-client";
+import { clearCachedLists } from "@/hooks/use-cached-list";
 import type { AuthUser, LoginResponse } from "@/types/api";
 
 interface AuthContextValue {
@@ -40,6 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearSession();
+    // As listas guardadas são da congregação de quem estava logado. Numa
+    // máquina compartilhada — o caso real da secretaria — o próximo login pode
+    // ser de outra pessoa, e possivelmente de outra congregação.
+    clearCachedLists();
     setUser(null);
     router.replace("/login");
   }, [router]);
@@ -81,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handler = () => {
       clearSession();
+      clearCachedLists();
       setUser(null);
     };
     window.addEventListener(UNAUTHORIZED_EVENT, handler);

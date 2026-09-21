@@ -5,7 +5,7 @@ import { listRoles } from "@/lib/api/roles";
 import type { Role } from "@/types/api";
 
 /** Só os ativos: um nível aposentado não pode aparecer no formulário de usuário. */
-const store = createCachedList<Role>(() => listRoles());
+const store = createCachedList<Role>("roles", () => listRoles());
 
 export const useRoles = store.useList;
 
